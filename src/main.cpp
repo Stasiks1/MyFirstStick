@@ -33,11 +33,11 @@ void setup() {
     M5.Lcd.setRotation(3);     // 2. Поворачиваем экран горизонтально (0-3)
     M5.Lcd.fillScreen(BLACK);  // 3. Заливаем экран черным цветом
 
+    M5.Lcd.setTextDatum(MC_DATUM);
     M5.Lcd.setTextColor(YELLOW); // Цвет текста
-    M5.Lcd.setTextSize(2);       // Размер шрифта
-    M5.Lcd.setCursor(10, 30);    // Координаты X, Y в пикселях
+    M5.Lcd.setTextSize(3);       // Размер шрифта
 
-    M5.Lcd.println("Hello, Stas!");
+    M5.Lcd.drawString("Hello", 120, 67);
     M5.IMU.Init(); // Запуск чипа датчика
 }
 void updateDisplay() {
@@ -52,6 +52,9 @@ void loop() {
     if (M5.BtnB.wasReleasefor(700)) {
       currentMode = 1 - currentMode;
       M5.Lcd.fillScreen(BLACK);
+      if (currentMode == 0) {
+            updateDisplay();
+        }
     }
     if (currentMode == 0) {
         runClicker();
