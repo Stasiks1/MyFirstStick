@@ -1,4 +1,11 @@
 #include <M5StickCPlus.h>
+#include <driver/i2s.h>
+
+#define PIN_CLK  0
+#define PIN_DATA 34
+#define READ_LEN 128
+
+int16_t micBuffer[READ_LEN]; // Буфер для звуковых точек
 int currentMode = 0; // 0 — режим кликера, 1 — режим акселерометра
 float accX = 0.0F;
 float accY = 0.0F;
@@ -55,6 +62,63 @@ void runStopwatch() {
         M5.Lcd.printf("%02d", seconds);
     }
 }
+void initMic() {
+    i2s_config_t i2s_config = {
+        .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX | I2S_MODE_PDM),
+        .sample_rate = 44100,
+        .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
+        .channel_format = I2S_CHANNEL_FMT_ALL_RIGHT,
+        .communication_format = I2S_COMM_FORMAT_STAND_I2S,
+        .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
+        .dma_buf_count = 2,
+        .dma_buf_len = 128,
+    };
+    i2s_pin_config_t pin_config = {
+        .bck_io_num = I2S_PIN_NO_CHANGE,
+        .ws_io_num = PIN_CLK,
+        .data_out_num = I2S_PIN_NO_CHANGE,
+        .data_in_num = PIN_DATA
+    };
+    i2s_driver_install(I2S_NUM_0, &i2s_config, 0, NULL);
+    i2s_set_pin(I2S_NUM_0, &pin_config);
+    i2s_set_clk(I2S_NUM_0, 44100, I2S_BITS_PER_SAMPLE_16BIT, I2S_CHANNEL_MONO);
+}
+void runNoiseMeter() {
+    size_t bytesRead = 0;
+    // 1. Читаем 128 точек звука из микрофона
+    i2s_read(I2S_NUM_0, (char *)micBuffer, READ_LEN * sizeof(int16_t), &bytesRead, portMAX_DELAY);
+
+    // 2. Ищем максимальное и минимальное значение волны
+    int16_t maxVal = -32768;
+    int16_t minVal = 32767;
+
+    for (int i = 0; i < READ_LEN; i++) {
+        if (micBuffer[i] > maxVal) maxVal = micBuffer[i];
+        if (micBuffer[i] < minVal) minVal = micBuffer[i];
+    }
+
+    int peak = maxVal - minVal; // Размах волны = уровень шума
+
+    // 3. Переводим звук в длину полоски от 0 до 200 пикселей
+    int barWidth = map(peak, 50, 4000, 0, 200);
+    barWidth = constrain(barWidth, 0, 200); // Ограничиваем, чтобы не вылезать за экран
+
+    // 4. Отрисовка на экране
+    M5.Lcd.setCursor(20, 20);
+    M5.Lcd.setTextSize(2);
+    M5.Lcd.setTextColor(WHITE, BLACK);
+    M5.Lcd.printf("NOISE: %04d", peak);
+
+    // Рисуем рамку для полоски
+    M5.Lcd.drawRect(20, 60, 202, 30, WHITE);
+
+    // Закрашиваем саму полоску громкости зеленым
+    M5.Lcd.fillRect(21, 61, barWidth, 28, GREEN);
+    // Очищаем черным оставшуюся пустую часть полоски
+    M5.Lcd.fillRect(21 + barWidth, 61, 200 - barWidth, 28, BLACK);
+
+    delay(20); // Небольшая пауза для плавности глаза
+}
 
 void setup() {
     M5.begin();                // 1. Включаем плату и шины питания
@@ -67,6 +131,7 @@ void setup() {
 
     M5.Lcd.drawString("Hello", 120, 67);
     M5.IMU.Init(); // Запуск чипа датчика
+    initMic(); // Инициализация микрофона
 }
 void updateDisplay() {
     M5.Lcd.fillScreen(BLACK);
@@ -81,7 +146,7 @@ void loop() {
     M5.Beep.update();
     if (M5.BtnB.wasReleasefor(700)) {
         currentMode++;
-        if (currentMode > 2) {
+        if (currentMode > 3) {
             currentMode = 0;
         }
         M5.Lcd.fillScreen(BLACK);
@@ -109,6 +174,9 @@ void loop() {
         break;
     case 2:
         runStopwatch();
+        break;
+    case 3:
+        runNoiseMeter();
         break;
 }
     }
