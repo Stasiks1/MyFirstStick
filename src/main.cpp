@@ -1,5 +1,6 @@
 #include <M5StickCPlus.h>
 #include <driver/i2s.h>
+#include <IRsend.h>
 
 #define PIN_CLK  0
 #define PIN_DATA 34
@@ -14,6 +15,7 @@ int counter = 0;
 int seconds = 0;
 bool isRunning = false;
 unsigned long previousMillis = 0;
+IRsend irsend(9);
 
 void runClicker() {
     if (M5.BtnA.wasPressed()) {
@@ -119,6 +121,22 @@ void runNoiseMeter() {
 
     delay(20); // Небольшая пауза для плавности глаза
 }
+void runIrRemote() {
+    if (M5.BtnA.wasPressed()) {
+        M5.Beep.tone(4000, 100); // Звуковой сигнал
+
+        M5.Lcd.setCursor(20, 100);
+        M5.Lcd.print("SENDING... ");
+
+        irsend.sendNEC(0x20DF10EF, 32, 2);      // Выстрел для LG
+        delay(40);
+        irsend.sendSAMSUNG(0xE0E040BF, 32);  // Выстрел для Samsung
+
+        delay(300);
+        M5.Lcd.setCursor(20, 100);
+        M5.Lcd.print("READY      ");
+    }
+}
 
 void setup() {
     M5.begin();                // 1. Включаем плату и шины питания
@@ -132,6 +150,8 @@ void setup() {
     M5.Lcd.drawString("Hello", 120, 67);
     M5.IMU.Init(); // Запуск чипа датчика
     initMic(); // Инициализация микрофона
+
+    irsend.begin();
 }
 void updateDisplay() {
     M5.Lcd.fillScreen(BLACK);
@@ -146,7 +166,7 @@ void loop() {
     M5.Beep.update();
     if (M5.BtnB.wasReleasefor(700)) {
         currentMode++;
-        if (currentMode > 3) {
+        if (currentMode > 4) {
             currentMode = 0;
         }
         M5.Lcd.fillScreen(BLACK);
@@ -163,8 +183,18 @@ void loop() {
 
             M5.Lcd.setCursor(20, 100);
             M5.Lcd.print("PAUSE");
+        } else if (currentMode == 3) {
+            M5.Lcd.setCursor(20, 20);
+            M5.Lcd.setTextSize(2);
+            M5.Lcd.print("IR REMOTE");
+
+            M5.Lcd.setCursor(20, 60);
+            M5.Lcd.print("BtnA: TV POWER");
+
+            M5.Lcd.setCursor(20, 100);
+            M5.Lcd.print("READY");
         }
-    }
+        }
         switch (currentMode) {
     case 0:
         runClicker();
@@ -178,5 +208,8 @@ void loop() {
     case 3:
         runNoiseMeter();
         break;
-}
+    case 4:
+        runIrRemote();
+        break;
     }
+}
