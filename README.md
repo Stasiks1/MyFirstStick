@@ -4,7 +4,7 @@ Multi-function embedded firmware built with a **Finite State Machine (FSM)** arc
 
 ## 🚀 Modes & Features
 
-The firmware operates as a non-blocking state machine with 4 distinct modes:
+The firmware operates as a non-blocking state machine with 5 distinct modes:
 
 1. **Interactive Clicker (Mode 0)**
    - Bidirectional counter (+1 / -1) clamped to non-negative values using `max()`.
@@ -18,12 +18,16 @@ The firmware operates as a non-blocking state machine with 4 distinct modes:
    - High-speed digital audio streaming via **I2S protocol** and SPM1423 PDM microphone.
    - Real-time peak amplitude wave analysis.
    - Flicker-free dynamic progress bar rendering.
+5. **Universal IR Remote Control (Mode 4)**
+   - 38 kHz infrared signal modulation on GPIO 9.
+   - Multi-burst universal TV power transmitter supporting **NEC (LG)** and **SAMSUNG** protocols simultaneously.
+   - Visual and acoustic transmission indicators.
 
 ---
 
 ## 🎮 Controls
 
-* **Hold Button B (Side, 700ms):** Cycle through modes (`0 -> 1 -> 2 -> 3 -> 0`).
+* **Hold Button B (Side, 700ms):** Cycle through modes (`0 -> 1 -> 2 -> 3 -> 4 -> 0`).
 
 ### Mode Specific Controls:
 * **Mode 0 (Clicker):**
@@ -32,6 +36,8 @@ The firmware operates as a non-blocking state machine with 4 distinct modes:
 * **Mode 2 (Stopwatch):**
   * `Button A (Front)`: Start / Pause (with beep)
   * `Button B (Side)`: Reset counter to `00` (works only while paused)
+* **Mode 4 (IR Remote):**
+  * `Button A (Front)`: Blast TV Power toggle signal (Dual LG/Samsung codes)
 * **Modes 1 & 3 (IMU & Noise Meter):** Fully automated real-time sensors.
 
 ---
@@ -39,8 +45,8 @@ The firmware operates as a non-blocking state machine with 4 distinct modes:
 ## 🛠 Tech Stack
 * **Language:** C++ (Embedded)
 * **Platform:** ESP32 / PlatformIO
-* **Hardware:** M5StickC PLUS (ESP32-PICO, LCD 135x240, MPU6886, SPM1423 Mic, Buzzer)
-* **Drivers & Concepts:** I2S Audio DMA, State Machine, Non-blocking `millis()` timing, Display partial redrawing.
+* **Hardware:** M5StickC PLUS (ESP32-PICO, LCD 135x240, MPU6886 IMU, SPM1423 Mic, IR Transmitter, Buzzer)
+* **Libraries & Protocols:** `IRremoteESP8266`, I2S Audio DMA, State Machine, Non-blocking `millis()` timing, Display partial redrawing.
 
 ## 📄 License
 MIT
