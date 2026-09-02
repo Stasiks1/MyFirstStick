@@ -1,13 +1,14 @@
 #include <M5StickCPlus.h>
 #include <driver/i2s.h>
 #include <IRsend.h>
+#include <math.h>
 
 #define PIN_CLK  0
 #define PIN_DATA 34
 #define READ_LEN 128
 
-int16_t micBuffer[READ_LEN]; // Буфер для звуковых точек
-int currentMode = 0; // 0 — режим кликера, 1 — режим акселерометра
+int16_t micBuffer[READ_LEN];
+int currentMode = 0;
 float accX = 0.0F;
 float accY = 0.0F;
 float accZ = 0.0F;
@@ -16,7 +17,13 @@ int seconds = 0;
 bool isRunning = false;
 unsigned long previousMillis = 0;
 IRsend irsend(9);
-int menuCursor = 1; // Номер выбранного пункта (от 1 до 5)
+int menuCursor = 1;
+int heartProgress = 0;
+void drawMenu();
+void runMenu();
+void runHeart();
+void updateDisplay();
+const char* getHeartWord(int index);
 
 void runClicker() {
     if (M5.BtnA.wasPressed()) {
@@ -138,6 +145,98 @@ void runIrRemote() {
         M5.Lcd.print("READY      ");
     }
 }
+
+const char* getHeartWord(int index) {
+    if (index == 6)  return "MAMA";
+    if (index == 22) return "DAD";
+    if (index == 14) return "H";
+    if (index == 13 || index == 15) return "YOU"; // Короткие слова у кончика, чтобы не наезжать на H!
+    if (index % 2 == 0) return "LOVE";
+    return "I LOVE YOU";
+}
+
+void runHeart() {
+    // 1. Постепенное появление (~3.5 сек)
+    if (heartProgress < 28) {
+        float t = heartProgress * 0.22;
+        float x = 16 * pow(sin(t), 3);
+        float y = 13 * cos(t) - 5 * cos(2 * t) - 2 * cos(3 * t) - cos(4 * t);
+
+        int screenX = 120 + (x * 3.1);
+        int screenY = 56 - (y * 3.1);
+
+        const char* word = getHeartWord(heartProgress);
+        int textOffset = strlen(word) * 3;
+
+        M5.Lcd.setTextSize(1);
+        if (heartProgress == 6 || heartProgress == 22) {
+            M5.Lcd.setTextColor(WHITE, BLACK);
+        } else {
+            M5.Lcd.setTextColor(CYAN, BLACK);
+        }
+
+        // Если это не точка острия — рисуем слово
+        if (heartProgress != 14) {
+            M5.Lcd.setCursor(screenX - textOffset, screenY);
+            M5.Lcd.print(word);
+        }
+
+        // Когда дошли до острия — ставим жирную букву H
+        if (heartProgress == 14) {
+            M5.Lcd.setTextSize(2);
+            M5.Lcd.setTextColor(RED, BLACK);
+            M5.Lcd.setCursor(120 - 6, 110);
+            M5.Lcd.print("H");
+        }
+
+        heartProgress++;
+        delay(125);
+        return;
+    }
+
+    // 2. Фаза биения сердца
+    M5.Lcd.fillScreen(BLACK);
+    float pulse = 3.0 + 0.25 * sin(millis() / 250.0);
+    int wordIndex = 0;
+
+    // Сначала рисуем весь контур сердца словами
+    for (float t = 0; t < 6.28; t += 0.22) {
+        // Пропускаем острие внутри цикла, чтобы не затирать H
+        if (wordIndex != 14) {
+            float x = 16 * pow(sin(t), 3);
+            float y = 13 * cos(t) - 5 * cos(2 * t) - 2 * cos(3 * t) - cos(4 * t);
+
+            int screenX = 120 + (x * pulse);
+            int screenY = 56 - (y * pulse);
+
+            const char* word = getHeartWord(wordIndex);
+            int textOffset = strlen(word) * 3;
+
+            M5.Lcd.setTextSize(1);
+            if (wordIndex == 6 || wordIndex == 22) {
+                M5.Lcd.setTextColor(WHITE, BLACK);
+            } else {
+                M5.Lcd.setTextColor(CYAN, BLACK);
+            }
+
+            M5.Lcd.setCursor(screenX - textOffset, screenY);
+            M5.Lcd.print(word);
+        }
+        wordIndex++;
+    }
+
+    // 3. Рисуем букву H ПОВЕРХ ВСЕГО в самом конце (ничего не перекроет!)
+    uint16_t hColor = ((millis() / 250) % 2 == 0) ? RED : WHITE;
+    int tipY = 56 + (17 * pulse) - 4; // Точный кончик острия сердца
+
+    M5.Lcd.setTextSize(2);
+    M5.Lcd.setTextColor(hColor, BLACK);
+    M5.Lcd.setCursor(120 - 6, tipY);
+    M5.Lcd.print("H");
+
+    delay(30);
+}
+
 void drawMenu() {
     M5.Lcd.fillScreen(BLACK);
     M5.Lcd.setTextSize(2);
@@ -145,15 +244,16 @@ void drawMenu() {
     M5.Lcd.setCursor(20, 5);
     M5.Lcd.print("--- MENU ---");
 
-    const char* items[5] = {
+    const char* items[6] = {
         "1. CLICKER",
         "2. IMU SENS",
         "3. STOPWATCH",
         "4. NOISE METER",
-        "5. IR REMOTE"
+        "5. IR REMOTE",
+        "6. HEART ANIM"
     };
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 6; i++) {
         int y = 25 + (i * 18);
         M5.Lcd.setCursor(10, y);
 
@@ -166,41 +266,41 @@ void drawMenu() {
         }
     }
 }
-void updateDisplay();
 
 void runMenu() {
-    // Кнопка B — листаем стрелку вниз
     if (M5.BtnB.wasPressed()) {
         menuCursor++;
-        if (menuCursor > 5) {
+        if (menuCursor > 6) {
             menuCursor = 1;
         }
-        drawMenu(); // Перерисовываем меню с новым положением стрелки
+        drawMenu();
     }
 
-    // Кнопка A — запускаем выбранную программу!
     if (M5.BtnA.wasPressed()) {
-        currentMode = menuCursor; // Переключаем режим на выбранный
+        currentMode = menuCursor;
         M5.Lcd.fillScreen(BLACK);
-if (currentMode == 1) {
-        updateDisplay();
-    } else if (currentMode == 3) { // Секундомер
-        M5.Lcd.setCursor(20, 20);
-        M5.Lcd.setTextSize(2);
-        M5.Lcd.print("STOPWATCH");
-        M5.Lcd.setCursor(80, 50);
-        M5.Lcd.printf("%02d", seconds);
-        M5.Lcd.setCursor(20, 100);
-        M5.Lcd.print("PAUSE");
-    } else if (currentMode == 5) { // ИК-Пульт
-        M5.Lcd.setCursor(20, 20);
-        M5.Lcd.setTextSize(2);
-        M5.Lcd.print("IR REMOTE");
-        M5.Lcd.setCursor(20, 60);
-        M5.Lcd.print("BtnA: TV POWER");
-        M5.Lcd.setCursor(20, 100);
-        M5.Lcd.print("READY");
-    }
+
+        if (currentMode == 1) {
+            updateDisplay();
+        } else if (currentMode == 3) {
+            M5.Lcd.setCursor(20, 20);
+            M5.Lcd.setTextSize(2);
+            M5.Lcd.print("STOPWATCH");
+            M5.Lcd.setCursor(80, 50);
+            M5.Lcd.printf("%02d", seconds);
+            M5.Lcd.setCursor(20, 100);
+            M5.Lcd.print("PAUSE");
+        } else if (currentMode == 5) {
+            M5.Lcd.setCursor(20, 20);
+            M5.Lcd.setTextSize(2);
+            M5.Lcd.print("IR REMOTE");
+            M5.Lcd.setCursor(20, 60);
+            M5.Lcd.print("BtnA: TV POWER");
+            M5.Lcd.setCursor(20, 100);
+            M5.Lcd.print("READY");
+        } else if (currentMode == 6) {
+            heartProgress = 0; // Сброс для красивой прорисовки сердца
+        }
     }
 }
 
@@ -253,6 +353,9 @@ M5.update();        // 1. Опрос кнопок
         break;
     case 5:
         runIrRemote();
+        break;
+    case 6:
+        runHeart();
         break;
     }
 }
