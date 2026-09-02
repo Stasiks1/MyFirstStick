@@ -2,14 +2,14 @@
 
 Multi-application embedded firmware with a **Graphical Launcher Menu** and **Finite State Machine (FSM)** architecture for **M5StickC PLUS (ESP32)**.
 
-## 📱 System Architecture & Menu
+## 📱 System Architecture & Applications
 
-The system boots into an interactive **GUI Launcher Menu** (Mode 0) that allows launching 5 standalone hardware applications:
+The system boots into an interactive **GUI Launcher Menu** (Mode 0) that manages 6 standalone hardware applications:
 
 1. **Interactive Clicker (Mode 1)**
    - Bidirectional counter (+1 / -1) clamped to non-negative values using `max()`.
 2. **3D IMU Motion Tracker (Mode 2)**
-   - Real-time 3-axis acceleration monitoring (`X`, `Y`, `Z`) via the onboard MPU6886 sensor.
+   - Real-time 3-axis acceleration monitoring (`X`, `Y`, `Z`) via onboard MPU6886 sensor.
 3. **Engineering Stopwatch (Mode 3)**
    - Non-blocking millisecond timer built on `millis()`.
    - Start / Pause handling and pause-only Reset logic with buzzer audio feedback.
@@ -19,30 +19,18 @@ The system boots into an interactive **GUI Launcher Menu** (Mode 0) that allows 
 5. **Universal IR Remote Controller (Mode 5)**
    - 38 kHz infrared signal transmitter on GPIO 9.
    - Dual-burst TV power toggle supporting **NEC (LG)** and **SAMSUNG** protocols simultaneously.
+6. **Parametric Heart Animation (Mode 6)**
+   - Real-time trigonometric rendering using parametric cardioid equations:
+     $$X = 16 \cdot \sin^3(t)$$
+     $$Y = 13 \cdot \cos(t) - 5 \cdot \cos(2t) - 2 \cdot \cos(3t) - \cos(4t)$$
+   - Progressive 3.5-second cinematic contour trace upon launch.
+   - Kinetic text particle rendering (`"I LOVE YOU"`, `"LOVE"`) with harmonic pulsating scale.
+   - Multi-layered Z-index rendering with embedded easter eggs (`MAMA`, `PAPA`, and a dynamic dual-color pulsating `H` beacon).
 
 ---
 
 ## 🎮 Navigation & Controls
 
 ### Main Menu (Launcher):
-* **Button B (Side, Click):** Scroll cursor (`>`) down the app list.
+* **Button B (Side, Click):** Scroll cursor (`>`) down through apps.
 * **Button A (Front, Click):** Launch the selected application.
-
-### Inside Any Application:
-* **Hold Button B (Side, 700ms):** Universal **«BACK TO MENU»** navigation.
-* **App Controls:**
-  * **Clicker:** `Btn A` (+1), `Btn B` (-1)
-  * **Stopwatch:** `Btn A` (Start/Pause), `Btn B` (Reset on pause)
-  * **IR Remote:** `Btn A` (Fire TV Power command)
-  * **IMU & Noise Meter:** Automated real-time sensor streams.
-
----
-
-## 🛠 Tech Stack
-* **Language:** C++ (Embedded)
-* **Platform:** ESP32 / PlatformIO / VS Code
-* **Hardware:** M5StickC PLUS (ESP32-PICO, LCD 135x240, MPU6886 IMU, SPM1423 Mic, IR LED, Buzzer)
-* **Concepts:** GUI List Rendering, I2S Audio DMA, State Machine, Non-blocking `millis()`, Top-to-Bottom C++ modular architecture.
-
-## 📄 License
-MIT
