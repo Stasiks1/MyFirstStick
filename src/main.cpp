@@ -16,6 +16,7 @@ int seconds = 0;
 bool isRunning = false;
 unsigned long previousMillis = 0;
 IRsend irsend(9);
+int menuCursor = 1; // Номер выбранного пункта (от 1 до 5)
 
 void runClicker() {
     if (M5.BtnA.wasPressed()) {
@@ -137,6 +138,71 @@ void runIrRemote() {
         M5.Lcd.print("READY      ");
     }
 }
+void drawMenu() {
+    M5.Lcd.fillScreen(BLACK);
+    M5.Lcd.setTextSize(2);
+    M5.Lcd.setTextColor(YELLOW, BLACK);
+    M5.Lcd.setCursor(20, 5);
+    M5.Lcd.print("--- MENU ---");
+
+    const char* items[5] = {
+        "1. CLICKER",
+        "2. IMU SENS",
+        "3. STOPWATCH",
+        "4. NOISE METER",
+        "5. IR REMOTE"
+    };
+
+    for (int i = 0; i < 5; i++) {
+        int y = 25 + (i * 18);
+        M5.Lcd.setCursor(10, y);
+
+        if (menuCursor == (i + 1)) {
+            M5.Lcd.setTextColor(GREEN, BLACK);
+            M5.Lcd.printf("> %s", items[i]);
+        } else {
+            M5.Lcd.setTextColor(WHITE, BLACK);
+            M5.Lcd.printf("  %s", items[i]);
+        }
+    }
+}
+void updateDisplay();
+
+void runMenu() {
+    // Кнопка B — листаем стрелку вниз
+    if (M5.BtnB.wasPressed()) {
+        menuCursor++;
+        if (menuCursor > 5) {
+            menuCursor = 1;
+        }
+        drawMenu(); // Перерисовываем меню с новым положением стрелки
+    }
+
+    // Кнопка A — запускаем выбранную программу!
+    if (M5.BtnA.wasPressed()) {
+        currentMode = menuCursor; // Переключаем режим на выбранный
+        M5.Lcd.fillScreen(BLACK);
+if (currentMode == 1) {
+        updateDisplay();
+    } else if (currentMode == 3) { // Секундомер
+        M5.Lcd.setCursor(20, 20);
+        M5.Lcd.setTextSize(2);
+        M5.Lcd.print("STOPWATCH");
+        M5.Lcd.setCursor(80, 50);
+        M5.Lcd.printf("%02d", seconds);
+        M5.Lcd.setCursor(20, 100);
+        M5.Lcd.print("PAUSE");
+    } else if (currentMode == 5) { // ИК-Пульт
+        M5.Lcd.setCursor(20, 20);
+        M5.Lcd.setTextSize(2);
+        M5.Lcd.print("IR REMOTE");
+        M5.Lcd.setCursor(20, 60);
+        M5.Lcd.print("BtnA: TV POWER");
+        M5.Lcd.setCursor(20, 100);
+        M5.Lcd.print("READY");
+    }
+    }
+}
 
 void setup() {
     M5.begin();                // 1. Включаем плату и шины питания
@@ -152,6 +218,8 @@ void setup() {
     initMic(); // Инициализация микрофона
 
     irsend.begin();
+
+    drawMenu();
 }
 void updateDisplay() {
     M5.Lcd.fillScreen(BLACK);
@@ -161,54 +229,29 @@ void updateDisplay() {
     M5.Lcd.print(counter);
 }
 void loop() {
-    M5.Beep.update();
-    M5.update(); // Опрос кнопок
-    M5.Beep.update();
-    if (M5.BtnB.wasReleasefor(700)) {
-        currentMode++;
-        if (currentMode > 4) {
-            currentMode = 0;
-        }
-        M5.Lcd.fillScreen(BLACK);
-        if(currentMode == 0) {
-            updateDisplay();
-        }else if (currentMode == 2) {
-             // Начальный экран секундомера:
-            M5.Lcd.setCursor(20, 20);
-             M5.Lcd.setTextSize(2);
-            M5.Lcd.print("STOPWATCH");
-    
-            M5.Lcd.setCursor(80, 50);
-            M5.Lcd.printf("%02d", seconds);
-
-            M5.Lcd.setCursor(20, 100);
-            M5.Lcd.print("PAUSE");
-        } else if (currentMode == 3) {
-            M5.Lcd.setCursor(20, 20);
-            M5.Lcd.setTextSize(2);
-            M5.Lcd.print("IR REMOTE");
-
-            M5.Lcd.setCursor(20, 60);
-            M5.Lcd.print("BtnA: TV POWER");
-
-            M5.Lcd.setCursor(20, 100);
-            M5.Lcd.print("READY");
-        }
-        }
+M5.update();        // 1. Опрос кнопок
+    M5.Beep.update();   // 2. Обновление звука
+    if (currentMode != 0 && M5.BtnB.wasReleasefor(700)) {
+        currentMode = 0; // Возвращаемся в меню
+        drawMenu();      // Рисуем меню заново
+    }
         switch (currentMode) {
     case 0:
-        runClicker();
+        runMenu();
         break;
     case 1:
-        runImu();
+        runClicker();
         break;
     case 2:
-        runStopwatch();
+        runImu();
         break;
     case 3:
-        runNoiseMeter();
+        runStopwatch();
         break;
     case 4:
+        runNoiseMeter();
+        break;
+    case 5:
         runIrRemote();
         break;
     }
